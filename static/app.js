@@ -8110,19 +8110,34 @@ function saveFieldDataMapping() {
 
 async function handleDataLoadElasticEnvChange() {
     const envId = document.getElementById('dataLoadElasticEnv')?.value;
+
     const indexSelect = document.getElementById('dataLoadElasticsearchIndex');
     if (!indexSelect) return;
     indexSelect.innerHTML = '<option value="">Select index...</option>';
     if (!envId) return;
     try {
-        const resp = await fetch(`/indices/${envId}`);
-        const indices = await resp.json();
-        indices.forEach(idx => {
-            const option = document.createElement('option');
-            option.value = idx.index;
-            option.textContent = idx.index;
-            indexSelect.appendChild(option);
-        });
+        if (envId === null) {
+            const resp = await fetch(`/indices/${envId}`);
+            const indices = await resp.json();
+            indices.forEach(idx => {
+                const option = document.createElement('option');
+                option.value = idx.index;
+                option.textContent = idx.index;
+                indexSelect.appendChild(option);
+            });
+        }else
+        {
+            const envIdTemp = (String(envId ?? '').split('-', 2)[1] ?? '');
+            const resp = await fetch(`/indices/${envIdTemp}`);
+            const indices = await resp.json();
+            indices.forEach(idx => {
+                const option = document.createElement('option');
+                option.value = idx.index;
+                option.textContent = idx.index;
+                indexSelect.appendChild(option);
+            });
+        }
+
     } catch (err) {
         console.error('Error loading Elasticsearch indices:', err);
         showAlert('Error loading Elasticsearch indices: ' + err.message, 'danger');
@@ -8183,9 +8198,12 @@ async function runDataLoad() {
 
     try {
         showAlert('Starting data load...', 'info');
+        console.log(oracleEnvId);
+        console.log(elasticEnvId);
+        const envIdTemp = (String(elasticEnvId ?? '').split('-', 2)[1] ?? '');
         const formData = new FormData();
         formData.append('oracle_env_id', oracleEnvId);
-        formData.append('elastic_env_id', elasticEnvId);
+        formData.append('elastic_env_id', envIdTemp);
         formData.append('index', indexName);
         formData.append('query', query);
         const response = await fetch('/oracle/data-load', {
