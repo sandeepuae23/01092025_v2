@@ -663,7 +663,7 @@ function createEnvironmentCard(env, type) {
 }
 
 function updateEnvironmentDropdowns() {
-    const dropdowns = ['indicesEnvironment', 'mappingEnvironment', 'workflowElasticEnvironment'];
+    const dropdowns = ['indicesEnvironment', 'mappingEnvironment', 'workflowElasticEnvironment', 'dataLoadElasticEnv'];
     dropdowns.forEach(id => {
         const select = document.getElementById(id);
         if (select) {
@@ -746,6 +746,20 @@ function updateOracleDropdowns() {
         }
     } else {
         console.log('mappingOracleEnvironment element not found');
+    }
+
+    // Update Data Load Oracle environment dropdown
+    const dataLoadSelect = document.getElementById('dataLoadOracleEnv');
+    if (dataLoadSelect) {
+        dataLoadSelect.innerHTML = '<option value="">Select Oracle Environment...</option>';
+        if (environments.oracle && environments.oracle.length > 0) {
+            environments.oracle.forEach(env => {
+                const option = document.createElement('option');
+                option.value = env.id;
+                option.textContent = env.name;
+                dataLoadSelect.appendChild(option);
+            });
+        }
     }
 }
 
@@ -8117,42 +8131,23 @@ async function handleDataLoadElasticEnvChange() {
 
 async function showDataLoadModal() {
     try {
-        // Ensure environments are loaded
-        if (!environments.oracle || !environments.elasticsearch || environments.oracle.length === 0 || environments.elasticsearch.length === 0) {
-            const resp = await fetch('/environments');
-            environments = await resp.json();
-        }
+        // Refresh environments and populate dropdowns
+        await loadEnvironments();
 
-        // Populate Oracle environments
+        // Preselect workflow Oracle environment if available
         const oracleSelect = document.getElementById('dataLoadOracleEnv');
-        if (oracleSelect) {
-            oracleSelect.innerHTML = '<option value="">Select Oracle environment...</option>';
-            (environments.oracle || []).forEach(env => {
-                const option = document.createElement('option');
-                option.value = env.id;
-                option.textContent = env.name;
-                oracleSelect.appendChild(option);
-            });
-            if (workflowData.selectedEnvironment) {
-                oracleSelect.value = workflowData.selectedEnvironment;
-            }
+        if (oracleSelect && workflowData.selectedEnvironment) {
+            oracleSelect.value = workflowData.selectedEnvironment;
         }
 
-        // Populate Elasticsearch environments
+        // Preselect workflow Elasticsearch environment and load indices
         const esEnvSelect = document.getElementById('dataLoadElasticEnv');
         if (esEnvSelect) {
-            esEnvSelect.innerHTML = '<option value="">Select Elasticsearch environment...</option>';
-            (environments.elasticsearch || []).forEach(env => {
-                const option = document.createElement('option');
-                option.value = env.id;
-                option.textContent = env.name;
-                esEnvSelect.appendChild(option);
-            });
             const workflowEnv = document.getElementById('workflowElasticEnvironment')?.value;
             if (workflowEnv) {
                 esEnvSelect.value = workflowEnv;
-                await handleDataLoadElasticEnvChange();
             }
+            await handleDataLoadElasticEnvChange();
         }
 
         const modalEl = document.getElementById('dataLoadModal');
