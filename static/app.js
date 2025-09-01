@@ -6916,6 +6916,7 @@ function setupWorkflowEventListeners() {
     const saveFieldDataMappingBtn = document.getElementById('saveFieldDataMappingBtn');
     const dataLoadBtn = document.getElementById('dataLoadBtn');
     const runDataLoadBtn = document.getElementById('runDataLoadBtn');
+    const dataLoadElasticEnv = document.getElementById('dataLoadElasticEnv');
     const mappingNameInput = document.getElementById('workflowMappingName');
     const indexNameInput = document.getElementById('workflowIndexName');
     const elasticEnvSelect = document.getElementById('workflowElasticEnvironment');
@@ -6959,6 +6960,9 @@ function setupWorkflowEventListeners() {
     }
     if (runDataLoadBtn) {
         runDataLoadBtn.addEventListener('click', runDataLoad);
+    }
+    if (dataLoadElasticEnv) {
+        dataLoadElasticEnv.addEventListener('change', handleDataLoadElasticEnvChange);
     }
 
     if (mappingNameInput) {
@@ -8090,10 +8094,31 @@ function saveFieldDataMapping() {
     }
 }
 
+async function handleDataLoadElasticEnvChange() {
+    const envId = document.getElementById('dataLoadElasticEnv')?.value;
+    const indexSelect = document.getElementById('dataLoadElasticsearchIndex');
+    if (!indexSelect) return;
+    indexSelect.innerHTML = '<option value="">Select index...</option>';
+    if (!envId) return;
+    try {
+        const resp = await fetch(`/indices/${envId}`);
+        const indices = await resp.json();
+        indices.forEach(idx => {
+            const option = document.createElement('option');
+            option.value = idx.index;
+            option.textContent = idx.index;
+            indexSelect.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Error loading Elasticsearch indices:', err);
+        showAlert('Error loading Elasticsearch indices: ' + err.message, 'danger');
+    }
+}
+
 async function showDataLoadModal() {
     try {
         // Ensure environments are loaded
-        if (!environments.oracle || environments.oracle.length === 0) {
+        if (!environments.oracle || !environments.elasticsearch || environments.oracle.length === 0 || environments.elasticsearch.length === 0) {
             const resp = await fetch('/environments');
             environments = await resp.json();
         }
@@ -8113,25 +8138,20 @@ async function showDataLoadModal() {
             }
         }
 
-        // Populate Elasticsearch indices based on selected environment
-        const esEnvId = document.getElementById('workflowElasticEnvironment')?.value;
-        const indexSelect = document.getElementById('dataLoadElasticsearchIndex');
-        if (indexSelect) {
-            indexSelect.innerHTML = '<option value="">Select index...</option>';
-            if (esEnvId) {
-                try {
-                    const resp = await fetch(`/indices/${esEnvId}`);
-                    const indices = await resp.json();
-                    indices.forEach(idx => {
-                        const option = document.createElement('option');
-                        option.value = idx.index;
-                        option.textContent = idx.index;
-                        indexSelect.appendChild(option);
-                    });
-                } catch (err) {
-                    console.error('Error loading Elasticsearch indices:', err);
-                    showAlert('Error loading Elasticsearch indices: ' + err.message, 'danger');
-                }
+        // Populate Elasticsearch environments
+        const esEnvSelect = document.getElementById('dataLoadElasticEnv');
+        if (esEnvSelect) {
+            esEnvSelect.innerHTML = '<option value="">Select Elasticsearch environment...</option>';
+            (environments.elasticsearch || []).forEach(env => {
+                const option = document.createElement('option');
+                option.value = env.id;
+                option.textContent = env.name;
+                esEnvSelect.appendChild(option);
+            });
+            const workflowEnv = document.getElementById('workflowElasticEnvironment')?.value;
+            if (workflowEnv) {
+                esEnvSelect.value = workflowEnv;
+                await handleDataLoadElasticEnvChange();
             }
         }
 
@@ -8148,7 +8168,7 @@ async function showDataLoadModal() {
 
 async function runDataLoad() {
     const oracleEnvId = document.getElementById('dataLoadOracleEnv')?.value;
-    const elasticEnvId = document.getElementById('workflowElasticEnvironment')?.value;
+    const elasticEnvId = document.getElementById('dataLoadElasticEnv')?.value;
     const indexName = document.getElementById('dataLoadElasticsearchIndex')?.value;
     const query = document.getElementById('dataLoadQuery')?.value.trim();
 
